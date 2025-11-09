@@ -23,6 +23,13 @@ const TransactionPage = () => {
   const [user, setUser] = useState(null);
 
   const VITE_BASE_URL = import.meta.env.VITE_BASE_URL;
+  const token = localStorage.getItem("token");
+
+  const axiosConfig = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
 
   const categories = [
     { id: 1, name: "Food & Dining" },
@@ -40,21 +47,13 @@ const TransactionPage = () => {
     return cat ? cat.name : "Unknown";
   };
 
- const token = localStorage.getItem("token");
-console.log("Token from localStorage:", token);
-
-const axiosConfig = {
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-};
-  // Fetch user & transactions on mount
+  // Fetch data
   useEffect(() => {
     fetchUser();
     fetchTransactions();
   }, []);
 
-  // Lock body scroll when modal or sidebar open
+  // Disable body scroll when sidebar/modal open
   useEffect(() => {
     document.body.style.overflow = mobileSidebarOpen || showModal ? "hidden" : "auto";
   }, [mobileSidebarOpen, showModal]);
@@ -105,7 +104,7 @@ const axiosConfig = {
     .filter((t) => t.merchant.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-b from-black via-[#0a0014] to-[#1a002a] text-gray-100">
+    <div className="flex min-h-screen bg-gradient-to-b from-black via-[#0a0014] to-[#1a002a] text-gray-100 overflow-hidden">
       {/* Sidebar */}
       <AdvancedSidebar
         user={user}
@@ -116,66 +115,80 @@ const axiosConfig = {
       <div className="flex-1 flex flex-col min-h-screen">
         <Header onMobileToggle={() => setMobileSidebarOpen(true)} />
 
-        <main className="p-4 md:p-6 mt-16 flex flex-col gap-6">
+        <main className="p-3 sm:p-4 md:p-6 mt-16 flex flex-col gap-6">
           {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-0">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-purple-400">Transactions</h1>
-              <p className="text-gray-400 text-sm md:text-base">Manage your income and expenses efficiently</p>
+              <p className="text-gray-400 text-sm md:text-base">
+                Manage your income and expenses efficiently
+              </p>
             </div>
             <button
               onClick={() => setShowModal(true)}
-              className="bg-gradient-to-r from-purple-600 to-indigo-700 text-white px-4 md:px-5 py-2.5 rounded-lg font-medium hover:from-purple-700 hover:to-indigo-800 transition-all duration-200 shadow-md"
+              className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-700 text-white px-4 py-2.5 rounded-lg font-medium hover:from-purple-700 hover:to-indigo-800 transition-all duration-200 shadow-md"
             >
               + Add Transaction
             </button>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-[#1b0128]/70 border border-purple-800/30 rounded-xl p-4 md:p-5 shadow-md">
-              <p className="text-sm text-gray-400">Total Balance</p>
-              <h2 className="text-xl md:text-2xl font-semibold text-purple-300 mt-1">
-                ₹
-                {transactions.reduce(
-                  (sum, t) => (t.type === "income" ? sum + parseFloat(t.amount) : sum - parseFloat(t.amount)),
-                  0
-                ).toLocaleString("en-IN")}
-              </h2>
-            </div>
-            <div className="bg-[#1b0128]/70 border border-purple-800/30 rounded-xl p-4 md:p-5 shadow-md">
-              <p className="text-sm text-gray-400">Total Income</p>
-              <h2 className="text-xl md:text-2xl font-semibold text-green-400 mt-1">
-                ₹
-                {transactions
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                title: "Total Balance",
+                color: "text-purple-300",
+                value: transactions
+                  .reduce(
+                    (sum, t) =>
+                      t.type === "income"
+                        ? sum + parseFloat(t.amount)
+                        : sum - parseFloat(t.amount),
+                    0
+                  )
+                  .toLocaleString("en-IN"),
+              },
+              {
+                title: "Total Income",
+                color: "text-green-400",
+                value: transactions
                   .filter((t) => t.type === "income")
                   .reduce((sum, t) => sum + parseFloat(t.amount), 0)
-                  .toLocaleString("en-IN")}
-              </h2>
-            </div>
-            <div className="bg-[#1b0128]/70 border border-purple-800/30 rounded-xl p-4 md:p-5 shadow-md">
-              <p className="text-sm text-gray-400">Total Expenses</p>
-              <h2 className="text-xl md:text-2xl font-semibold text-red-400 mt-1">
-                ₹
-                {transactions
+                  .toLocaleString("en-IN"),
+              },
+              {
+                title: "Total Expenses",
+                color: "text-red-400",
+                value: transactions
                   .filter((t) => t.type === "expense")
                   .reduce((sum, t) => sum + parseFloat(t.amount), 0)
-                  .toLocaleString("en-IN")}
-              </h2>
-            </div>
-            <div className="bg-[#1b0128]/70 border border-purple-800/30 rounded-xl p-4 md:p-5 shadow-md">
-              <p className="text-sm text-gray-400">Total Transactions</p>
-              <h2 className="text-xl md:text-2xl font-semibold text-indigo-400 mt-1">{transactions.length}</h2>
-            </div>
+                  .toLocaleString("en-IN"),
+              },
+              {
+                title: "Total Transactions",
+                color: "text-indigo-400",
+                value: transactions.length,
+              },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="bg-[#1b0128]/70 border border-purple-800/30 rounded-xl p-4 sm:p-5 shadow-md flex flex-col justify-center"
+              >
+                <p className="text-sm text-gray-400">{item.title}</p>
+                <h2 className={`text-xl sm:text-2xl font-semibold mt-1 ${item.color}`}>
+                  ₹{item.value}
+                </h2>
+              </div>
+            ))}
           </div>
 
           {/* Filters */}
           <div className="bg-[#1b0128]/70 border border-purple-800/30 p-4 rounded-xl shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap">
-            <div className="flex gap-2 sm:gap-3 flex-wrap">
+            <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto">
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 z-[1000]"
+                className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 flex-1 sm:flex-none"
               >
                 <option value="all">All</option>
                 <option value="income">Income</option>
@@ -185,7 +198,7 @@ const axiosConfig = {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 z-[1000]"
+                className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 flex-1 sm:flex-none"
               >
                 <option value="all">All Categories</option>
                 {categories.map((c) => (
@@ -197,10 +210,10 @@ const axiosConfig = {
 
               <input
                 type="text"
-                placeholder="Search by merchant..."
+                placeholder="Search merchant..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:ring-2 focus:ring-purple-500 min-w-[150px] z-[1000]"
+                className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:ring-2 focus:ring-purple-500 flex-1 min-w-[150px]"
               />
             </div>
           </div>
@@ -210,42 +223,64 @@ const axiosConfig = {
             <table className="min-w-full text-sm">
               <thead className="bg-purple-950/50 text-purple-300 uppercase text-xs sm:text-sm">
                 <tr>
-                  <th className="py-2 px-3 text-left">Merchant</th>
-                  <th className="py-2 px-3 text-left">Category</th>
-                  <th className="py-2 px-3 text-left">Date</th>
-                  <th className="py-2 px-3 text-left">Type</th>
-                  <th className="py-2 px-3 text-left">Amount</th>
+                  <th className="py-2 px-3 text-left whitespace-nowrap">Merchant</th>
+                  <th className="py-2 px-3 text-left whitespace-nowrap">Category</th>
+                  <th className="py-2 px-3 text-left whitespace-nowrap">Date</th>
+                  <th className="py-2 px-3 text-left whitespace-nowrap">Type</th>
+                  <th className="py-2 px-3 text-left whitespace-nowrap">Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTransactions.map((t) => (
-                  <tr key={t.transaction_id} className="border-t border-purple-800/30 hover:bg-purple-900/20 transition">
-                    <td className="py-2 px-3">{t.merchant}</td>
-                    <td className="py-2 px-3 text-purple-300">{getCategoryName(t.category_id)}</td>
-                    <td className="py-2 px-3 text-gray-400">{new Date(t.transaction_date).toLocaleDateString()}</td>
-                    <td className={`py-2 px-3 ${t.type === "income" ? "text-green-400" : "text-red-400"}`}>{t.type}</td>
-                    <td className="py-2 px-3 font-semibold">{t.type === "income" ? "+" : "-"}₹{parseFloat(t.amount).toLocaleString("en-IN")}</td>
+                  <tr
+                    key={t.transaction_id}
+                    className="border-t border-purple-800/30 hover:bg-purple-900/20 transition"
+                  >
+                    <td className="py-2 px-3 break-words">{t.merchant}</td>
+                    <td className="py-2 px-3 text-purple-300">
+                      {getCategoryName(t.category_id)}
+                    </td>
+                    <td className="py-2 px-3 text-gray-400 whitespace-nowrap">
+                      {new Date(t.transaction_date).toLocaleDateString()}
+                    </td>
+                    <td
+                      className={`py-2 px-3 ${
+                        t.type === "income" ? "text-green-400" : "text-red-400"
+                      }`}
+                    >
+                      {t.type}
+                    </td>
+                    <td className="py-2 px-3 font-semibold whitespace-nowrap">
+                      {t.type === "income" ? "+" : "-"}₹
+                      {parseFloat(t.amount).toLocaleString("en-IN")}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             {filteredTransactions.length === 0 && (
-              <div className="text-center py-6 text-gray-400">No transactions found.</div>
+              <div className="text-center py-6 text-gray-400">
+                No transactions found.
+              </div>
             )}
           </div>
         </main>
 
-        {/* Add Transaction Modal */}
+        {/* Modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[11000] p-4">
-            <div className="bg-[#1b0128] border border-purple-700/50 rounded-xl w-full max-w-md p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
-              <h2 className="text-xl font-semibold text-purple-300 mb-4">Add New Transaction</h2>
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[11000] p-3 sm:p-4">
+            <div className="bg-[#1b0128] border border-purple-700/50 rounded-xl w-full max-w-md p-5 sm:p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+              <h2 className="text-lg sm:text-xl font-semibold text-purple-300 mb-4">
+                Add New Transaction
+              </h2>
               <form onSubmit={handleAddTransaction} className="flex flex-col gap-3">
                 <input
                   type="text"
                   placeholder="Merchant"
                   value={newTransaction.merchant}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, merchant: e.target.value })}
+                  onChange={(e) =>
+                    setNewTransaction({ ...newTransaction, merchant: e.target.value })
+                  }
                   required
                   className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500"
                 />
@@ -253,13 +288,17 @@ const axiosConfig = {
                   type="number"
                   placeholder="Amount"
                   value={newTransaction.amount}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
+                  onChange={(e) =>
+                    setNewTransaction({ ...newTransaction, amount: e.target.value })
+                  }
                   required
                   className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500"
                 />
                 <select
                   value={newTransaction.type}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, type: e.target.value })}
+                  onChange={(e) =>
+                    setNewTransaction({ ...newTransaction, type: e.target.value })
+                  }
                   className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="expense">Expense</option>
@@ -268,30 +307,41 @@ const axiosConfig = {
                 <input
                   type="date"
                   value={newTransaction.transaction_date}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, transaction_date: e.target.value })}
+                  onChange={(e) =>
+                    setNewTransaction({
+                      ...newTransaction,
+                      transaction_date: e.target.value,
+                    })
+                  }
                   required
                   className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500"
                 />
                 <select
                   value={newTransaction.category_id}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, category_id: e.target.value })}
+                  onChange={(e) =>
+                    setNewTransaction({ ...newTransaction, category_id: e.target.value })
+                  }
                   required
                   className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="">Select Category</option>
                   {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
                   ))}
                 </select>
                 <textarea
                   placeholder="Description"
                   value={newTransaction.description}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
+                  onChange={(e) =>
+                    setNewTransaction({ ...newTransaction, description: e.target.value })
+                  }
                   className="bg-transparent border border-purple-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 resize-none"
                   rows={3}
                 ></textarea>
 
-                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-2">
+                <div className="flex flex-col sm:flex-row justify-end gap-2 mt-2">
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}

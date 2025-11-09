@@ -1,211 +1,270 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FaUser, 
-  FaBell, 
-  FaShieldAlt,
-  FaPalette, 
-  FaDownload, 
-  FaCreditCard, 
-  FaRobot, 
-  FaShareAlt, 
-  FaCamera, 
-  FaSave, 
-  FaTimes,
-  FaArrowLeft 
-} from 'react-icons/fa';
-import { MdCurrencyExchange, MdAnalytics } from 'react-icons/md';
-import { useNavigate } from 'react-router-dom';
+import { FaUser, FaBell, FaShieldAlt, FaPalette, FaDownload, FaArrowLeft } from 'react-icons/fa';
+import { MdCurrencyExchange } from 'react-icons/md';
+import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import Header from '../components/Header';
+import AdvancedSidebar from '../components/Sidebar';
 
 const AccountHolderPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
-  const [userData, setUserData] = useState({
-    name: 'John Dice',
-    email: 'john.dice@example.com',
-    phone: '+1 (555) 123-4567',
-    currency: 'USD',
-    membership: 'Premium',
-    joinDate: 'January 2024'
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [message, setMessage] = useState({ type: "", text: "" });
+
+  const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    currency: "INR",
+    language: "en",
+    timezone: "Asia/Kolkata"
   });
 
-  const [preferences, setPreferences] = useState({
-    budgetAlerts: true,
-    subscriptionReminders: true,
-    monthlyReports: true,
-    expenseCategorization: true,
-    darkMode: true
-  });
-
-  const [formData, setFormData] = useState({ ...userData });
+  const VITE_BASE_URL = import.meta.env.VITE_BASE_URL;
+  const token = localStorage.getItem("token");
+  
+  const axiosConfig = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
 
   useEffect(() => {
-    // Fetch user data from API
-    const fetchUserData = async () => {
-      // Simulated API call
-      const userInfo = {
-        name: 'John Dice',
-        email: 'john.dice@example.com',
-        phone: '+1 (555) 123-4567',
-        currency: 'USD',
-        membership: 'Premium',
-        joinDate: 'January 2024'
-      };
-      setUserData(userInfo);
-      setFormData(userInfo);
-    };
-    
-    fetchUserData();
+    fetchUser();
   }, []);
 
-  const handleBackToDashboard = () => {
-    navigate('/dashBoard'); // Adjust the path based on your routing
+  const fetchUser = async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      const res = await axios.get(`${VITE_BASE_URL}/api/users/me`, axiosConfig);
+      const userData = res.data.user;
+      setUser(userData);
+      setFormData({
+        first_name: userData.first_name || "",
+        last_name: userData.last_name || "",
+        email: userData.email || "",
+        phone: userData.phone || "",
+        currency: userData.currency || "INR",
+        language: userData.language || "en",
+        timezone: userData.timezone || "Asia/Kolkata"
+      });
+    } catch (err) {
+      console.error("Fetch user error:", err.response?.data || err.message);
+      showMessage("error", "Failed to load user data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    // Go back to previous page instead of fixed route
+    navigate(-1);
+  };
+
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage({ type: "", text: "" }), 5000);
   };
 
   const handleSave = async () => {
     try {
-      // Simulate API call to update user data
-      console.log('Saving user data:', formData);
-      setUserData(formData);
+      setLoading(true);
+      await axios.put(`${VITE_BASE_URL}/api/users/profile`, formData, axiosConfig);
+      showMessage("success", "Profile updated successfully");
       setIsEditing(false);
-      // Show success message
+      fetchUser(); // Refresh user data
     } catch (error) {
-      console.error('Error saving data:', error);
+      console.error("Update profile error:", error);
+      showMessage("error", "Failed to update profile");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    setFormData(userData);
+    setFormData({
+      first_name: user?.first_name || "",
+      last_name: user?.last_name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+      currency: user?.currency || "INR",
+      language: user?.language || "en",
+      timezone: user?.timezone || "Asia/Kolkata"
+    });
     setIsEditing(false);
   };
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handlePreferenceChange = (preference, value) => {
-    setPreferences(prev => ({
-      ...prev,
-      [preference]: value
-    }));
-  };
-
-  const exportData = (format) => {
-    console.log(`Exporting data in ${format} format`);
-    // Implement export functionality
-  };
-
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: <FaUser className="text-sm" /> },
-    { id: 'preferences', label: 'Preferences', icon: <FaPalette className="text-sm" /> },
-    { id: 'notifications', label: 'Notifications', icon: <FaBell className="text-sm" /> },
-    { id: 'security', label: 'Security', icon: <FaShieldAlt className="text-sm" /> },
-    { id: 'export', label: 'Data Export', icon: <FaDownload className="text-sm" /> }
+    { id: 'profile', label: 'Profile', icon: <FaUser /> },
+    { id: 'preferences', label: 'App Preferences', icon: <FaPalette /> },
+    { id: 'notifications', label: 'Notifications', icon: <FaBell /> },
+    { id: 'security', label: 'Security', icon: <FaShieldAlt /> },
+    { id: 'export', label: 'Data Export', icon: <FaDownload /> }
   ];
 
-  return (
-    <div className="min-h-screen bg-gray-900 pt-16">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header with Back Button */}
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <button
-              onClick={handleBackToDashboard}
-              className="flex items-center gap-2 px-4 py-2 mb-4 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-all duration-200"
-            >
-              <FaArrowLeft className="text-sm" />
-              Back to Dashboard
-            </button>
-            <h1 className="text-3xl font-bold text-white mb-2">Account Settings</h1>
-            <p className="text-gray-400">Manage your profile, preferences, and account security</p>
-          </div>
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-gradient-to-b from-black via-[#0a0014] to-[#1a002a] text-gray-100">
+        <AdvancedSidebar
+          user={user}
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-purple-400 text-xl">Loading profile...</div>
         </div>
+      </div>
+    );
+  }
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Navigation */}
-          <div className="lg:w-1/4">
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-              {/* User Profile Summary */}
-              <div className="text-center mb-8">
-                <div className="w-20 h-20 bg-gradient-to-r from-purple-600 to-indigo-700 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <FaUser className="text-2xl text-white" />
-                </div>
-                <h3 className="text-lg font-semibold text-white">{userData.name}</h3>
-                <p className="text-gray-400 text-sm">{userData.membership} Member</p>
-                <p className="text-gray-500 text-xs mt-1">Joined {userData.joinDate}</p>
-              </div>
+  return (
+    <div className="flex min-h-screen bg-gradient-to-b from-black via-[#0a0014] to-[#1a002a] text-gray-100">
+      <AdvancedSidebar
+        user={user}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
 
-              {/* Navigation Tabs */}
-              <nav className="space-y-2">
-                {tabs.map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                      activeTab === tab.id
-                        ? 'bg-purple-600 text-white shadow-lg'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                    }`}
-                  >
-                    {tab.icon}
-                    <span className="font-medium">{tab.label}</span>
-                  </button>
-                ))}
-              </nav>
+      <div className="flex-1 flex flex-col min-h-screen">
+        <Header
+          onMobileToggle={() => setMobileSidebarOpen(true)}
+        />
+
+        <main className="p-4 md:p-6 mt-16 flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-6">
+            <button
+              onClick={handleBack}
+              className="p-2 hover:bg-purple-600/20 rounded-lg transition-colors"
+            >
+              <FaArrowLeft className="text-purple-400" />
+            </button>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-purple-400">My Profile</h1>
+              <p className="text-gray-400">Manage your account information and preferences</p>
             </div>
           </div>
 
-          {/* Main Content */}
-          <div className="lg:w-3/4">
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-              {/* Profile Tab */}
-              {activeTab === 'profile' && (
-                <div>
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-semibold text-white">Profile Information</h2>
-                    {!isEditing ? (
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                      >
-                        Edit Profile
-                      </button>
-                    ) : (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleSave}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                        >
-                          <FaSave />
-                          Save Changes
-                        </button>
-                        <button
-                          onClick={handleCancel}
-                          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-                        >
-                          <FaTimes />
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                  </div>
+          {/* Message Alert */}
+          {message.text && (
+            <div className={`p-4 rounded-lg border ${
+              message.type === "success" 
+                ? "bg-green-500/20 border-green-500 text-green-400" 
+                : "bg-red-500/20 border-red-500 text-red-400"
+            }`}>
+              {message.text}
+            </div>
+          )}
 
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Left Sidebar */}
+            {/* Sidebar / Dropdown Navigation */}
+<div className="lg:w-64 flex-shrink-0">
+  {/* Mobile Dropdown */}
+{/* Mobile Dropdown */}
+<div className="block lg:hidden mb-4">
+  <select
+    value={activeTab}
+    onChange={(e) => setActiveTab(e.target.value)}
+    className="w-full bg-[#1b0128]/70 border border-purple-800/30 text-purple-300 rounded-lg px-3 py-3 focus:ring-2 focus:ring-purple-500"
+  >
+    <option value="profile">👤 Profile</option>
+    <option value="preferences">🎨 App Preferences</option>
+    <option value="notifications">🔔 Notifications</option>
+    <option value="security">🛡️ Security</option>
+    <option value="export">📤 Data Export</option>
+  </select>
+</div>
+
+
+  {/* Desktop Sidebar */}
+  <div className="hidden lg:block bg-[#1b0128]/70 border border-purple-800/30 rounded-xl p-4 shadow-md">
+    <nav className="space-y-2">
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          onClick={() => setActiveTab(tab.id)}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${
+            activeTab === tab.id
+              ? "bg-purple-600/40 text-white"
+              : "text-gray-400 hover:bg-purple-600/20 hover:text-purple-300"
+          }`}
+        >
+          {tab.icon}
+          <span className="font-medium">{tab.label}</span>
+        </button>
+      ))}
+    </nav>
+  </div>
+</div>
+
+
+            {/* Main Content */}
+            <div className="flex-1">
+              <div className="bg-[#1b0128]/70 border border-purple-800/30 rounded-xl p-6">
+                {/* Profile Information */}
+                {activeTab === 'profile' && (
                   <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-xl font-semibold text-purple-300">Profile Information</h2>
+                      {!isEditing ? (
+                        <button
+                          onClick={() => setIsEditing(true)}
+                          className="px-4 py-2 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg transition-colors"
+                        >
+                          Edit Profile
+                        </button>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleSave}
+                            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                          >
+                            Save Changes
+                          </button>
+                          <button
+                            onClick={handleCancel}
+                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="grid md:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-gray-300 mb-2">Full Name</label>
+                        <label className="block text-gray-300 mb-2">First Name</label>
                         {isEditing ? (
                           <input
                             type="text"
-                            value={formData.name}
-                            onChange={(e) => handleInputChange('name', e.target.value)}
+                            value={formData.first_name}
+                            onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-600"
                           />
                         ) : (
-                          <div className="bg-gray-700 rounded-lg px-4 py-3 text-white">{userData.name}</div>
+                          <div className="bg-gray-700 rounded-lg px-4 py-3 text-white">{user.first_name}</div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-300 mb-2">Last Name</label>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={formData.last_name}
+                            onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          />
+                        ) : (
+                          <div className="bg-gray-700 rounded-lg px-4 py-3 text-white">{user.last_name}</div>
                         )}
                       </div>
 
@@ -215,11 +274,11 @@ const AccountHolderPage = () => {
                           <input
                             type="email"
                             value={formData.email}
-                            onChange={(e) => handleInputChange('email', e.target.value)}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-600"
                           />
                         ) : (
-                          <div className="bg-gray-700 rounded-lg px-4 py-3 text-white">{userData.email}</div>
+                          <div className="bg-gray-700 rounded-lg px-4 py-3 text-white">{user.email}</div>
                         )}
                       </div>
 
@@ -229,11 +288,11 @@ const AccountHolderPage = () => {
                           <input
                             type="tel"
                             value={formData.phone}
-                            onChange={(e) => handleInputChange('phone', e.target.value)}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-600"
                           />
                         ) : (
-                          <div className="bg-gray-700 rounded-lg px-4 py-3 text-white">{userData.phone}</div>
+                          <div className="bg-gray-700 rounded-lg px-4 py-3 text-white">{user.phone}</div>
                         )}
                       </div>
 
@@ -242,7 +301,7 @@ const AccountHolderPage = () => {
                         {isEditing ? (
                           <select
                             value={formData.currency}
-                            onChange={(e) => handleInputChange('currency', e.target.value)}
+                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-600"
                           >
                             <option value="USD">USD - US Dollar</option>
@@ -253,132 +312,60 @@ const AccountHolderPage = () => {
                         ) : (
                           <div className="bg-gray-700 rounded-lg px-4 py-3 text-white flex items-center gap-2">
                             <MdCurrencyExchange />
-                            {userData.currency}
+                            {user.currency}
                           </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-300 mb-2">Language</label>
+                        {isEditing ? (
+                          <select
+                            value={formData.language}
+                            onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          >
+                            <option value="en">English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                          </select>
+                        ) : (
+                          <div className="bg-gray-700 rounded-lg px-4 py-3 text-white">{user.language}</div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-300 mb-2">Timezone</label>
+                        {isEditing ? (
+                          <select
+                            value={formData.timezone}
+                            onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          >
+                            <option value="Asia/Kolkata">Asia/Kolkata</option>
+                            <option value="America/New_York">America/New_York</option>
+                            <option value="Europe/London">Europe/London</option>
+                            <option value="Australia/Sydney">Australia/Sydney</option>
+                          </select>
+                        ) : (
+                          <div className="bg-gray-700 rounded-lg px-4 py-3 text-white">{user.timezone}</div>
                         )}
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Preferences Tab */}
-              {activeTab === 'preferences' && (
-                <div>
-                  <h2 className="text-xl font-semibold text-white mb-6">Preferences</h2>
-                  
-                  <div className="space-y-6">
-                    <div className="bg-gray-750 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <FaBell className="text-purple-400" />
-                        Alert Preferences
-                      </h3>
-                      <div className="space-y-4">
-                        {[
-                          { id: 'budgetAlerts', label: 'Budget Limit Alerts', description: 'Get notified when spending reaches 80% of your budget' },
-                          { id: 'subscriptionReminders', label: 'Subscription Renewals', description: 'Remind me before recurring payments are due' },
-                          { id: 'monthlyReports', label: 'Monthly Reports', description: 'Send monthly expense summary reports' }
-                        ].map(pref => (
-                          <div key={pref.id} className="flex items-center justify-between p-3 hover:bg-gray-700 rounded-lg transition-colors">
-                            <div>
-                              <div className="text-white font-medium">{pref.label}</div>
-                              <div className="text-gray-400 text-sm">{pref.description}</div>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={preferences[pref.id]}
-                                onChange={(e) => handlePreferenceChange(pref.id, e.target.checked)}
-                                className="sr-only peer"
-                              />
-                              <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-750 rounded-lg p-6">
-                      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <FaRobot className="text-purple-400" />
-                        AI Features
-                      </h3>
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 hover:bg-gray-700 rounded-lg transition-colors">
-                          <div>
-                            <div className="text-white font-medium">Smart Expense Categorization</div>
-                            <div className="text-gray-400 text-sm">Automatically categorize expenses using AI</div>
-                          </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={preferences.expenseCategorization}
-                              onChange={(e) => handlePreferenceChange('expenseCategorization', e.target.checked)}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Data Export Tab */}
-              {activeTab === 'export' && (
-                <div>
-                  <h2 className="text-xl font-semibold text-white mb-6">Data Export</h2>
-                  
-                  <div className="grid md:grid-cols-3 gap-6 mb-8">
-                    {[
-                      { format: 'PDF', icon: <FaDownload />, color: 'from-red-500 to-pink-600' },
-                      { format: 'Excel', icon: <MdAnalytics />, color: 'from-green-500 to-emerald-600' },
-                      { format: 'CSV', icon: <FaDownload />, color: 'from-blue-500 to-cyan-600' }
-                    ].map((item) => (
-                      <div key={item.format} className="bg-gray-750 rounded-xl p-6 text-center border border-gray-700 hover:border-purple-500 transition-colors">
-                        <div className={`w-16 h-16 bg-gradient-to-r ${item.color} rounded-full flex items-center justify-center mx-auto mb-4`}>
-                          <div className="text-2xl text-white">{item.icon}</div>
-                        </div>
-                        <h3 className="text-lg font-semibold text-white mb-2">{item.format} Export</h3>
-                        <p className="text-gray-400 text-sm mb-4">Download your data in {item.format} format</p>
-                        <button
-                          onClick={() => exportData(item.format)}
-                          className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg transition-colors"
-                        >
-                          Export {item.format}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="bg-gray-750 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Export Settings</h3>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-3">
-                        <div className="text-white">Include transaction history</div>
-                        <input type="checkbox" defaultChecked className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded" />
-                      </div>
-                      <div className="flex items-center justify-between p-3">
-                        <div className="text-white">Include budget data</div>
-                        <input type="checkbox" defaultChecked className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded" />
-                      </div>
-                      <div className="flex items-center justify-between p-3">
-                        <div className="text-white">Include subscription details</div>
-                        <input type="checkbox" defaultChecked className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Add other tabs similarly... */}
+                {/* Add other tabs content here */}
+              </div>
             </div>
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );
 };
 
 export default AccountHolderPage;
+
+// Update the avatar fallback in your Sidebar component

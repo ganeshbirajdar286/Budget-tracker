@@ -13,6 +13,12 @@ import session from "express-session";
 import  verifyToken  from "./middlewares/authMiddleware.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import budgetRoutes from "./routes/budgetRoutes.js";
+import currenciesRoutes from "./routes/currencieRoute.js";
+import subscriptionRoutes from "./routes/SubscriptionRoute.js";
+import settingsRouter from './routes/settingsRoute.js';
+import reportsRouter from './routes/reportsRoute.js';
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 dotenv.config();
 
@@ -60,12 +66,17 @@ app.use(passport.session());
 app.use(errorHandler);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/users", userRoutes);
-
-
+app.use('/api/budgets', budgetRoutes); // Add this line
+app.use("/api/currencies", currenciesRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
+app.use('/api/users', settingsRouter);
+app.use('/api/reports', reportsRouter);
+app.use("/api/notifications", notificationRoutes);
 // ---------------- Helper: sign JWT & set cookie ----------------
+// ...existing code...
 function createAndSetToken(res, user) {
   const token = jwt.sign(
-    { id: user.user_id, email: user.email },
+    { user_id: user.user_id, email: user.email }, // use user_id consistently
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
@@ -78,6 +89,7 @@ function createAndSetToken(res, user) {
 
   return token;
 }
+// ...existing code...
 
 app.get("/transactions", verifyToken, async (req, res) => {
   try {
@@ -111,24 +123,45 @@ app.get("/categories", verifyToken, async (req, res) => {
 
 app.post("/transactions", verifyToken, async (req, res) => {
   try {
-    const { category_id, type, amount, currency, description, merchant, transaction_date } = req.body;
+    console.log("POST /transactions req.user:", req.user); // <-- debug
+    const {
+      category_id, type, amount, currency, description, merchant, transaction_date,
+    } = req.body;
+    const userId = req.user?.user_id ?? req.user?.id;
+    console.log("Resolved userId:", userId); // <-- debug
 
     const result = await pool.query(
-      `INSERT INTO transactions (user_id, category_id, type, amount, currency, description, merchant, transaction_date, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW(), NOW()) RETURNING *`,
-      [req.user.id, category_id, type, amount, currency, description, merchant, transaction_date]
+      `INSERT INTO transactions
+        (user_id, category_id, type, amount, currency, description, merchant, transaction_date, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW(), NOW())
+       RETURNING *`,
+      [userId, category_id, type, amount, currency, description, merchant, transaction_date]
     );
 
-    res.status(201).json({ transaction: result.rows[0] });
+    let createdNotification = null;
+    try {
+      const title = `New transaction: ${merchant || description || "Transaction"}`;
+      const message = `You spent ₹${Number(amount).toLocaleString("en-IN")} on ${merchant || description || "an item"}`;
+      const notifRes = await pool.query(
+        `INSERT INTO notifications (user_id, title, message, type, priority, action_url, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6, NOW()) RETURNING *`,
+        [userId, `New transaction: ${merchant||description}`, `You spent ₹${Number(amount).toLocaleString('en-IN')} on ${merchant||description}`, 'transaction', 'low', '/transactions']
+      );
+      console.log('Notification created for txn:', notifRes.rows[0]);
+      createdNotification = notifRes.rows[0];
+    } catch (notifErr) {
+      console.warn("Failed to insert notification:", notifErr?.message || notifErr);
+    }
+
+    res.status(201).json({ transaction: result.rows[0], notification: createdNotification });
   } catch (err) {
+    console.error("POST /transactions error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 
 
-
-// ================= SIGN UP =================
 app.post("/sign-up", async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -275,6 +308,22 @@ app.get(
 
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+// Debug endpoint: create a test notification for the authenticated user
+app.post("/api/debug/notifications", verifyToken, async (req, res) => {
+  try {
+    const userId = req.user?.user_id ?? req.user?.id;
+    const { title = "Debug notification", message = "This is a test", priority = "low" } = req.body;
+    const q = `INSERT INTO notifications (user_id, title, message, type, priority, action_url, created_at)
+               VALUES ($1,$2,$3,$4,$5,$6, NOW()) RETURNING *`;
+    const r = await pool.query(q, [userId, title, message, "debug", priority, "/debug"]);
+    console.log("Debug notification created for user:", userId, r.rows[0]);
+    res.status(201).json({ notification: r.rows[0] });
+  } catch (err) {
+    console.error("DEBUG /api/debug/notifications error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Start server
 app.listen(port, () => console.log(`Server running on http://localhost:${port}`));

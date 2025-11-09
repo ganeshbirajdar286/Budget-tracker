@@ -476,34 +476,63 @@ const AnalyticsPage = () => {
       </h3>
     </div>
 
-    <ResponsiveContainer width="100%" height={250}>
-      <BarChart 
-        data={[{ name: "You", income: totalIncome, expense: totalExpense }]}
-        barCategoryGap="40%"
-        barGap={4}
-      >
-        <CartesianGrid strokeDasharray="3 3" stroke="#3b0764" />
-        <XAxis dataKey="name" stroke="#a855f7" />
-        <YAxis stroke="#a855f7" />
+   <ResponsiveContainer width="100%" height={280}>
+  <BarChart
+    data={[{ name: "You", income: totalIncome, expense: totalExpense }]}
+    barCategoryGap="30%"
+    barGap={6}
+    margin={{ top: 10, right: 20, left: 0, bottom: 5 }}
+  >
+    <CartesianGrid strokeDasharray="3 3" stroke="#3b0764" />
+    <XAxis
+      dataKey="name"
+      stroke="#a855f7"
+      tick={{ fontSize: 12 }}
+    />
+    <YAxis
+      stroke="#a855f7"
+      tick={{ fontSize: 12 }}
+      tickFormatter={(value) => 
+        value >= 100000 ? `${(value / 100000).toFixed(1)}L` : value
+      } // ✅ Formats large numbers
+      domain={[0, "dataMax + 10000"]}
+    />
 
-        {/* ❌ Tooltip remove kar diya */}
-        {/* <Tooltip /> */}
+    <Tooltip
+      contentStyle={{
+        backgroundColor: "#1b0128",
+        border: "1px solid #6b21a8",
+        borderRadius: "8px",
+        color: "#fff",
+      }}
+      formatter={(value, name) => [
+        `₹${value.toLocaleString("en-IN")}`,
+        name.charAt(0).toUpperCase() + name.slice(1),
+      ]}
+    />
 
-        <Legend />
-        <Bar 
-          dataKey="income" 
-          fill="#22c55e" 
-          radius={[6, 6, 0, 0]} 
-          isAnimationActive={false} // hover animation band
-        />
-        <Bar 
-          dataKey="expense" 
-          fill="#ef4444" 
-          radius={[6, 6, 0, 0]} 
-          isAnimationActive={false} // hover animation band
-        />
-      </BarChart>
-    </ResponsiveContainer>
+    <Legend
+      wrapperStyle={{
+        fontSize: "12px",
+        color: "#a855f7",
+      }}
+    />
+
+    <Bar
+      dataKey="income"
+      fill="#22c55e"
+      radius={[6, 6, 0, 0]}
+      barSize={40}
+    />
+    <Bar
+      dataKey="expense"
+      fill="#ef4444"
+      radius={[6, 6, 0, 0]}
+      barSize={40}
+    />
+  </BarChart>
+</ResponsiveContainer>
+
   </motion.div>
             {/* Top Categories & Recent Activity */}
             <motion.div

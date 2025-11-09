@@ -1,13 +1,12 @@
-// src/models/userModel.js
 import pool from "../config/db.js"; // PostgreSQL connection pool
 
 // ✅ Create a new user
-export const createUser = async ({ name, email, password, role }) => {
+export const createUser = async ({ username, email, password }) => {
   const result = await pool.query(
-    `INSERT INTO users (name, email, password, role)
-     VALUES ($1, $2, $3, $4)
-     RETURNING user_id, name, email, role, created_at`,
-    [name, email, password, role || "user"]
+    `INSERT INTO users (username, email, password_hash)
+     VALUES ($1, $2, $3)
+     RETURNING user_id, username, email, created_at`,
+    [username, email, password]
   );
   return result.rows[0];
 };
@@ -24,29 +23,30 @@ export const findUserByEmail = async (email) => {
 // ✅ Find user by ID
 export const findUserById = async (user_id) => {
   const result = await pool.query(
-    `SELECT user_id, name, email, role, created_at
-     FROM users WHERE user_id = $1`,
+    `SELECT user_id, username, email, created_at 
+     FROM users 
+     WHERE user_id = $1`,
     [user_id]
   );
   return result.rows[0];
 };
 
-// ✅ Get all users (admin only)
+// ✅ Get all users (if ever needed)
 export const getAllUsers = async () => {
   const result = await pool.query(
-    `SELECT user_id, name, email, role, created_at FROM users ORDER BY created_at DESC`
+    `SELECT user_id, username, email, created_at FROM users ORDER BY created_at DESC`
   );
   return result.rows;
 };
 
 // ✅ Update user
-export const updateUser = async (user_id, { name, email, role }) => {
+export const updateUser = async (user_id, { username, email }) => {
   const result = await pool.query(
     `UPDATE users
-     SET name = $1, email = $2, role = $3, updated_at = NOW()
-     WHERE user_id = $4
-     RETURNING user_id, name, email, role, updated_at`,
-    [name, email, role, user_id]
+     SET username = $1, email = $2, updated_at = NOW()
+     WHERE user_id = $3
+     RETURNING user_id, username, email, updated_at`,
+    [username, email, user_id]
   );
   return result.rows[0];
 };

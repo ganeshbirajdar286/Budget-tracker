@@ -1,11 +1,9 @@
-// src/controllers/userController.js
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import {
   createUser,
   findUserByEmail,
   findUserById,
-  getAllUsers,
   updateUser,
   deleteUser,
 } from "../models/userModel.js";
@@ -13,7 +11,7 @@ import {
 // ✅ Signup Controller
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { username, email, password } = req.body;
 
     // 1️⃣ Check existing user
     const existing = await findUserByEmail(email);
@@ -26,15 +24,14 @@ export const registerUser = async (req, res) => {
 
     // 3️⃣ Create user
     const newUser = await createUser({
-      name,
+      username,
       email,
       password: hashedPassword,
-      role,
     });
 
     // 4️⃣ Generate token
     const token = jwt.sign(
-      { user_id: newUser.user_id, email: newUser.email, role: newUser.role },
+      { user_id: newUser.user_id, email: newUser.email },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -62,14 +59,14 @@ export const loginUser = async (req, res) => {
     }
 
     // 2️⃣ Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ msg: "Invalid credentials" });
     }
 
     // 3️⃣ Create JWT
     const token = jwt.sign(
-      { user_id: user.user_id, email: user.email, role: user.role },
+      { user_id: user.user_id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -78,9 +75,8 @@ export const loginUser = async (req, res) => {
       msg: "Login successful",
       user: {
         user_id: user.user_id,
-        name: user.name,
+        username: user.username,
         email: user.email,
-        role: user.role,
       },
       token,
     });
@@ -95,7 +91,7 @@ export const getProfile = async (req, res) => {
   try {
     const user = await findUserById(req.user.user_id);
     if (!user) return res.status(404).json({ msg: "User not found" });
-    res.json(user);
+    res.json({ user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -105,8 +101,8 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const user_id = req.user.user_id;
-    const { name, email, role } = req.body;
-    const updated = await updateUser(user_id, { name, email, role });
+    const { username, email } = req.body;
+    const updated = await updateUser(user_id, { username, email });
     res.json({ msg: "Profile updated", user: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -119,19 +115,6 @@ export const deleteAccount = async (req, res) => {
     const user_id = req.user.user_id;
     await deleteUser(user_id);
     res.json({ msg: "Account deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// ✅ Admin – Get all users
-export const adminGetAllUsers = async (req, res) => {
-  try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ msg: "Access denied" });
-    }
-    const users = await getAllUsers();
-    res.json(users);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

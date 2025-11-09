@@ -24,6 +24,7 @@ const FinanceDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [timeRange, setTimeRange] = useState("month");
+  const [pieChartRadius, setPieChartRadius] = useState(80);
 
   const VITE_BASE_URL = import.meta.env.VITE_BASE_URL;
   const token = localStorage.getItem("token");
@@ -79,6 +80,30 @@ const FinanceDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    // Hide labels below 5% (optional)
+    if (percent < 0.05) return null;
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#fff"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize="10"
+        style={{ pointerEvents: "none" }}
+      >
+        {`${name} ${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
   };
 
   // 🔹 Export CSV Function
@@ -182,42 +207,41 @@ const FinanceDashboard = () => {
 
   // 🔹 Weekly Spending with safe handling - FIXED VERSION
   const getWeeklySpending = () => {
-    // Initialize weekly data for the past 7 days
-    const weeklyData = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      return {
-        day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        amount: 0
-      };
-    }).reverse();
+  // Initialize last 7 days (oldest → newest)
+  const weeklyData = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    return {
+      day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      amount: 0
+    };
+  }).reverse();
 
-    // Process transactions safely
-    transactions.forEach(transaction => {
-      if (!transaction || transaction.type !== "expense") return;
-      
-      try {
-        const amount = getSafeAmount(transaction);
-        if (!amount) return;
+  // Fill data
+  transactions.forEach(transaction => {
+    if (!transaction || transaction.type !== "expense") return;
 
-        const transactionDate = new Date(transaction.transaction_date);
-        if (isNaN(transactionDate.getTime())) return;
+    try {
+      const amount = getSafeAmount(transaction);
+      if (!amount) return;
 
-        const today = new Date();
-        const diffTime = today - transactionDate;
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays >= 0 && diffDays < 7) {
-          weeklyData[diffDays].amount += amount;
-        }
-      } catch (error) {
-        console.warn('Error processing transaction for weekly spending:', error);
+      const transactionDate = new Date(transaction.transaction_date);
+      if (isNaN(transactionDate.getTime())) return;
+
+      const today = new Date();
+      const diffTime = today - transactionDate;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays >= 0 && diffDays < 7) {
+        weeklyData[6 - diffDays].amount += amount; // ✅ correct index alignment
       }
-    });
+    } catch (error) {
+      console.warn('Error processing transaction for weekly spending:', error);
+    }
+  });
 
-    return weeklyData;
-  };
-
+  return weeklyData;
+};
   // 🔹 Data for Pie Chart (Expenses by Category) with safe handling
   const expenseByCategory = categories
     .map((cat) => ({
@@ -246,6 +270,18 @@ const FinanceDashboard = () => {
   useEffect(() => {
     document.body.style.overflow = mobileSidebarOpen ? "hidden" : "auto";
   }, [mobileSidebarOpen]);
+
+  // 🔹 Adjust pie chart radius on resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 480) setPieChartRadius(100);
+      else if (window.innerWidth < 768) setPieChartRadius(90);
+      else setPieChartRadius(80);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-gradient-to-b from-black via-[#0a0014] to-[#1a002a] text-gray-100">
@@ -458,58 +494,75 @@ const FinanceDashboard = () => {
           {/* Bottom Section */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Expense Distribution */}
-            <motion.div 
-              className="lg:col-span-1 bg-[#1b0128]/70 border border-purple-800/30 rounded-xl p-6 shadow-lg"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
+           <motion.div 
+  className="lg:col-span-1 bg-[#1b0128]/70 border border-purple-800/30 rounded-xl p-6 shadow-lg"
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ delay: 0.5 }}
+>
+  <div className="flex items-center gap-2 mb-6">
+    <PieChartIcon className="w-5 h-5 text-purple-400" />
+    <h3 className="text-xl font-semibold text-purple-300">
+      Expense Distribution
+    </h3>
+  </div>
+
+  {expenseByCategory.length > 0 ? (
+    <>
+      <div className="w-full h-56 sm:h-64 md:h-72">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={expenseByCategory}
+              dataKey="value"
+              nameKey="name"
+              outerRadius={pieChartRadius}
+              labelLine={false}
+              label={CustomLabel}
             >
-              <div className="flex items-center gap-2 mb-6">
-                <PieChartIcon className="w-5 h-5 text-purple-400" />
-                <h3 className="text-xl font-semibold text-purple-300">
-                  Expense Distribution
-                </h3>
-              </div>
-              {expenseByCategory.length > 0 ? (
-                <>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={expenseByCategory}
-                        dataKey="value"
-                        nameKey="name"
-                        outerRadius={80}
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                        labelLine={false}
-                      >
-                        {expenseByCategory.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 space-y-2">
-                    {expenseByCategory.map((category, index) => (
-                      <div key={index} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: category.color }}
-                          />
-                          <span className="text-gray-300">{category.name}</span>
-                        </div>
-                        <span className="text-purple-300 font-medium">
-                          ₹{category.value.toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <p className="text-gray-400 text-sm text-center py-8">No expense data available.</p>
-              )}
-            </motion.div>
+              {expenseByCategory.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#1b0128",
+                border: "1px solid #6b21a8",
+                borderRadius: "8px",
+                color: "#fff",
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        {expenseByCategory.map((category, index) => (
+          <div
+            key={index}
+            className="flex items-center justify-between text-sm"
+          >
+            <div className="flex items-center gap-2">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: category.color }}
+              />
+              <span className="text-gray-300">{category.name}</span>
+            </div>
+            <span className="text-purple-300 font-medium">
+              ₹{category.value.toLocaleString("en-IN")}
+            </span>
+          </div>
+        ))}
+      </div>
+    </>
+  ) : (
+    <p className="text-gray-400 text-sm text-center py-8">
+      No expense data available.
+    </p>
+  )}
+</motion.div>
+
 
             {/* Recent Transactions */}
             <motion.div 
