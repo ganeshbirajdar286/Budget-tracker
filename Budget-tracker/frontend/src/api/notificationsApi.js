@@ -1,4 +1,5 @@
 import axios from "axios";
+import api from "../lib/api";
 
 const API_BASE = (import.meta.env.VITE_BASE_URL && import.meta.env.VITE_BASE_URL.replace(/\/$/, "")) || "http://localhost:5000";
 
@@ -17,11 +18,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+
 export const getNotifications = async () => {
   const res = await api.get("/api/notifications");
   return res.data;
 };
-
 export const createNotification = async (payload) => {
   const res = await api.post("/api/notifications", payload);
   return res.data;
