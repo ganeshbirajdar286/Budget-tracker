@@ -159,6 +159,7 @@ app.get("/categories", verifyToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.get("/_health", (req, res) => res.status(200).send("ok"));
 
 app.post("/transactions", verifyToken, async (req, res) => {
   try {
