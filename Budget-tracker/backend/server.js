@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 import pool from "./config/db.js";
 import cors from "cors";
 import jwt from "jsonwebtoken";
-import cookieParser from "cookie-parser";
+import cookieParser from "cookie-parser"; 
 import { errorHandler } from "./middlewares/errorHandler.js";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -16,7 +16,7 @@ import transactionRoutes from "./routes/transactionRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import budgetRoutes from "./routes/budgetRoutes.js";
 import currenciesRoutes from "./routes/currencieRoute.js";
-import subscriptionRoutes from "./routes/SubscriptionRoute.js";
+import subscriptionRoutes from "./routes/SubscriptionRoute.js"; 
 import settingsRouter from "./routes/settingsRoute.js";
 import reportsRouter from "./routes/reportsRoute.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
@@ -56,8 +56,7 @@ app.use(
   })
 );
 
-// ⚙️ Fix: Handle preflight manually (in case middleware missed)
-app.options("*", cors());
+
 
 // JSON & cookies
 app.use(express.json());
@@ -112,18 +111,18 @@ passport.deserializeUser(async (id, done) => {
 });
 
 // ---------------- Routes ----------------
-app.use("/api/transactions", transactionRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/users/settings", settingsRouter);
-app.use("/api/budgets", budgetRoutes);
-app.use("/api/currencies", currenciesRoutes);
-app.use("/api/subscriptions", subscriptionRoutes);
-app.use("/api/reports", reportsRouter);
-app.use("/api/notifications", notificationRoutes);
+console.log("transactionRoutes:", typeof transactionRoutes);
+console.log("userRoutes:", typeof userRoutes);
+console.log("budgetRoutes:", typeof budgetRoutes);
+console.log("currenciesRoutes:", typeof currenciesRoutes);
+console.log("subscriptionRoutes:", typeof subscriptionRoutes);
+console.log("settingsRouter:", typeof settingsRouter);
+console.log("reportsRouter:", typeof reportsRouter);
+console.log("notificationRoutes:", typeof notificationRoutes);
 
 // ---------------- JWT Helper ----------------
 function createAndSetToken(res, user) {
-  const token = jwt.sign(
+  const token = jwt.sign( 
     { user_id: user.user_id ?? user.id, email: user.email },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
